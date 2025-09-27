@@ -11,7 +11,9 @@
       "Bash(git remote set-url:*)",
       "Bash(git add:*)",
       "Bash(rm:*)",
-      "Bash(git init:*)"
+      "Bash(git init:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
