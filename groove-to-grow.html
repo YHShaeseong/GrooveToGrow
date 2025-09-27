@@ -1,0 +1,1621 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>Groove to Grow - AI 홈트레이닝</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- 갈무리 폰트 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri/dist/galmuri.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Galmuri11', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+
+    body.main-page-active {
+      height: auto;
+      min-height: 100vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    /* 헤더 - 맨 위에 고정 */
+    .header {
+      background: #fce4ec;
+      color: white;
+      text-align: center;
+      padding: 20px 0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      height: 100px;
+      overflow: hidden;
+      position: relative;
+    }
+
+
+    .title-container {
+      position: relative;
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 15px;
+      padding: 15px 30px;
+      margin: 0 20px;
+      max-width: calc(100% - 40px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(8px);
+    }
+
+    .header h1 {
+      font-size: 2.2em;
+      font-weight: 900;
+      margin: 0;
+      font-family: 'Galmuri11', monospace;
+      letter-spacing: 1px;
+      text-shadow: 2px 2px 0px #ff4081, 4px 4px 0px #ffeb3b, 6px 6px 10px rgba(0,0,0,0.2);
+      background: linear-gradient(45deg, #e91e63, #ff4081, #ffeb3b, #4caf50, #2196f3);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header .subtitle {
+      font-size: 1em;
+      margin: 0;
+      color: #6a1b9a;
+      font-weight: 700;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+
+    /* 메인 컨테이너 - 헤더 아래부터 푸터 위까지 */
+    .main-container {
+      display: flex;
+      min-height: calc(100vh - 100px); /* 헤더(100px)만 제외 */
+      height: auto;
+      margin-top: 100px; /* 헤더 높이만큼 */
+      margin-bottom: 80px; /* 푸터 높이만큼 여백 추가 */
+      padding: 0 20px 20px 20px !important;
+      gap: 20px;
+      overflow: visible;
+    }
+
+    /* 왼쪽 절반 - 동작 인식 */
+    .left-section {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      height: auto;
+      min-height: 400px;
+    }
+
+    /* 오른쪽 절반 - 올바른 동작 가이드 */
+    .right-section {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      height: auto;
+      min-height: 400px;
+    }
+
+    .section-title {
+      font-size: 1.5em;
+      font-weight: 700;
+      color: #2d3748;
+      margin-bottom: 15px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    /* 비디오 컨테이너 */
+    .video-container {
+      position: relative;
+      width: 100%;
+      height: 300px;
+      background: #1a202c;
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 15px;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    .input_video {
+      display: none;
+    }
+
+    .output_canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(26, 32, 44, 0.9);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 2;
+    }
+
+    .loading-overlay.hidden {
+      display: none;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #38b2ac;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .status-indicator {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.8em;
+      font-weight: 600;
+      z-index: 3;
+      backdrop-filter: blur(8px);
+      background: rgba(113, 128, 150, 0.9);
+      color: white;
+    }
+
+    .status-active {
+      background: rgba(56, 178, 172, 0.9);
+    }
+
+    .status-detecting {
+      background: rgba(72, 187, 120, 0.9);
+    }
+
+    /* 줌바 비디오 컨테이너 */
+    .zumba-video-container {
+      width: 100%;
+      height: 300px;
+      background: #1a202c;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 15px;
+    }
+
+    #zumbaVideo, #zumbaCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 16px;
+      object-fit: cover;
+    }
+
+    .video-placeholder {
+      text-align: center;
+      color: white;
+      z-index: 2;
+    }
+
+    .placeholder-icon {
+      font-size: 3em;
+      margin-bottom: 10px;
+    }
+
+    .video-placeholder p {
+      font-size: 1em;
+      margin: 0;
+    }
+
+    /* 카운트다운 오버레이 */
+    .countdown-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+      border-radius: 16px;
+    }
+
+    .countdown-overlay.active {
+      display: flex;
+    }
+
+    .countdown-number {
+      font-size: 4em;
+      font-weight: 800;
+      color: #48bb78;
+      text-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+      animation: countdownPulse 1s ease-in-out;
+    }
+
+    @keyframes countdownPulse {
+      0% {
+        transform: scale(0.5);
+        opacity: 0;
+      }
+      50% {
+        transform: scale(1.2);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    /* 컨트롤 버튼들 */
+    .controls {
+      display: flex;
+      gap: 15px;
+      margin-top: auto;
+      flex-shrink: 0;
+      justify-content: center;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      font-size: 1em;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      min-width: 100px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #38b2ac, #319795);
+      color: white;
+      box-shadow: 0 4px 12px rgba(56, 178, 172, 0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(56, 178, 172, 0.4);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #f56565, #e53e3e);
+      color: white;
+      box-shadow: 0 4px 12px rgba(245, 101, 101, 0.3);
+    }
+
+    .btn-danger:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(245, 101, 101, 0.4);
+    }
+
+    .btn:disabled {
+      background: #e2e8f0;
+      color: #a0aec0;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* 푸터 - 맨 아래 고정 */
+    .footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 80px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+      z-index: 100;
+    }
+
+    .result-button {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      font-size: 1.3em;
+      font-weight: 700;
+      padding: 16px 48px;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.4s ease;
+      box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+    }
+
+    .result-button:hover {
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 12px 32px rgba(102, 126, 234, 0.4);
+    }
+
+    /* 분석 페이지 */
+    .analysis-page {
+      display: none;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 100px 20px 60px;
+    }
+
+    .analysis-page.active {
+      display: block;
+    }
+
+    .analysis-container {
+      max-width: 1000px;
+      margin: 0 auto 40px;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+
+    .analysis-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .analysis-title {
+      font-size: 2.5em;
+      font-weight: 800;
+      color: #2d3748;
+      margin: 0;
+    }
+
+    .back-to-main-btn {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 50px;
+      font-size: 1.1em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .back-to-main-btn:hover {
+      transform: translateY(-2px) scale(1.05);
+      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+    }
+
+    /* 메시지 표시 */
+    .message-area {
+      margin: 10px 0;
+      min-height: 20px;
+      flex-shrink: 0;
+    }
+
+    .success-message {
+      background: rgba(72, 187, 120, 0.1);
+      border: 1px solid rgba(72, 187, 120, 0.3);
+      color: #2f855a;
+      padding: 12px 16px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 0.9em;
+    }
+
+    .error-message {
+      background: rgba(245, 101, 101, 0.1);
+      border: 1px solid rgba(245, 101, 101, 0.3);
+      color: #c53030;
+      padding: 12px 16px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 0.9em;
+    }
+
+    /* 아이들을 위한 큰 점수 표시 */
+    .kids-score-section {
+      background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%);
+      padding: 40px;
+      border-radius: 20px;
+      margin: 30px 0;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(255, 154, 158, 0.3);
+    }
+
+    .kids-score-section h3 {
+      font-size: 2.2em;
+      color: #2d3748;
+      margin-bottom: 30px;
+      font-weight: 800;
+    }
+
+    .big-score-display {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 50px;
+      border-radius: 25px;
+      box-shadow: 0 12px 30px rgba(102, 126, 234, 0.4);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .big-score-display::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+      animation: shimmer 3s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+      100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+    }
+
+    .score-value {
+      font-size: 6em;
+      font-weight: 900;
+      color: #ffd700;
+      text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      margin-bottom: 20px;
+      position: relative;
+      z-index: 2;
+      animation: scoreGlow 2s ease-in-out infinite alternate;
+    }
+
+    @keyframes scoreGlow {
+      0% { text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), 0 0 20px #ffd700; }
+      100% { text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), 0 0 40px #ffd700, 0 0 60px #ffd700; }
+    }
+
+    .score-message {
+      font-size: 1.8em;
+      color: white;
+      font-weight: 700;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* 부모님을 위한 운동 정보 섹션 */
+    .parent-info-section {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 35px;
+      border-radius: 20px;
+      margin: 30px 0;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+      border-left: 5px solid #38b2ac;
+    }
+
+    .parent-info-section h3 {
+      font-size: 1.8em;
+      color: #2d3748;
+      margin-bottom: 25px;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .exercise-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 25px;
+      margin-bottom: 30px;
+    }
+
+    .stat-item {
+      background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+      padding: 25px;
+      border-radius: 15px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(56, 178, 172, 0.1);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .stat-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-icon {
+      font-size: 2.5em;
+      background: linear-gradient(135deg, #38b2ac, #319795);
+      color: white;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(56, 178, 172, 0.3);
+    }
+
+    .stat-content {
+      flex: 1;
+    }
+
+    .stat-label {
+      font-size: 0.9em;
+      color: #718096;
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+
+    .stat-value {
+      font-size: 1.6em;
+      color: #2d3748;
+      font-weight: 800;
+    }
+
+    .health-tip {
+      background: linear-gradient(135deg, #68d391 0%, #48bb78 100%);
+      padding: 20px;
+      border-radius: 15px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      box-shadow: 0 4px 12px rgba(72, 187, 120, 0.2);
+    }
+
+    .tip-icon {
+      font-size: 2em;
+      color: white;
+    }
+
+    .tip-text {
+      color: white;
+      font-size: 1.1em;
+      font-weight: 600;
+    }
+
+    /* 반응형 디자인 */
+    @media (max-width: 768px) {
+      .main-container {
+        flex-direction: column;
+        height: auto;
+        overflow-y: auto;
+      }
+
+      .score-value {
+        font-size: 4em;
+      }
+
+      .kids-score-section {
+        padding: 30px 20px;
+      }
+
+      .big-score-display {
+        padding: 30px;
+      }
+
+      .exercise-stats {
+        grid-template-columns: 1fr;
+        gap: 15px;
+      }
+
+      .stat-item {
+        padding: 20px;
+      }
+
+      .health-tip {
+        flex-direction: column;
+        text-align: center;
+        gap: 10px;
+      }
+    }
+
+    /* 개인정보 동의 팝업 스타일 */
+    .privacy-popup-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 9999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(5px);
+    }
+
+    .privacy-popup {
+      background: white;
+      border-radius: 20px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      animation: popupSlideIn 0.3s ease-out;
+    }
+
+    @keyframes popupSlideIn {
+      from {
+        opacity: 0;
+        transform: scale(0.8) translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    .privacy-popup-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 25px 30px;
+      border-radius: 20px 20px 0 0;
+      text-align: center;
+    }
+
+    .privacy-popup-title {
+      font-size: 1.5em;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .privacy-popup-content {
+      padding: 30px;
+    }
+
+    .privacy-section {
+      margin-bottom: 20px;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 10px;
+      border-left: 4px solid #667eea;
+    }
+
+    .privacy-section-title {
+      font-weight: 700;
+      color: #2d3748;
+      margin-bottom: 8px;
+      font-size: 1.1em;
+    }
+
+    .privacy-section-content {
+      color: #4a5568;
+      line-height: 1.6;
+    }
+
+    .privacy-consent {
+      margin: 30px 0;
+      padding: 20px;
+      background: #e6fffa;
+      border-radius: 12px;
+      border: 2px solid #38b2ac;
+    }
+
+    .privacy-checkbox-container {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      cursor: pointer;
+    }
+
+    .privacy-checkbox {
+      width: 20px;
+      height: 20px;
+      margin-top: 2px;
+      cursor: pointer;
+    }
+
+    .privacy-checkbox-label {
+      font-weight: 600;
+      color: #2d3748;
+      line-height: 1.5;
+      cursor: pointer;
+    }
+
+    .privacy-notice {
+      background: #fff5f5;
+      border: 1px solid #feb2b2;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 20px 0;
+      color: #c53030;
+      font-size: 0.9em;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .privacy-popup-footer {
+      padding: 0 30px 30px;
+      text-align: center;
+    }
+
+    .privacy-confirm-btn {
+      background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+      color: white;
+      border: none;
+      padding: 15px 40px;
+      border-radius: 25px;
+      font-size: 1.1em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
+    }
+
+    .privacy-confirm-btn:disabled {
+      background: #cbd5e0;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .privacy-confirm-btn:not(:disabled):hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(72, 187, 120, 0.4);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <!-- 개인정보 수집 및 이용 동의 팝업 -->
+  <div class="privacy-popup-overlay" id="privacyPopup">
+    <div class="privacy-popup">
+      <div class="privacy-popup-header">
+        <h2 class="privacy-popup-title">🛡️ 개인정보 수집 및 이용 안내</h2>
+      </div>
+      <div class="privacy-popup-content">
+        <div class="privacy-section">
+          <div class="privacy-section-title">📋 수집 항목</div>
+          <div class="privacy-section-content">아동 이름, 나이, 보호자 연락처, 운동 참여 기록</div>
+        </div>
+        <div class="privacy-section">
+          <div class="privacy-section-title">🎯 이용 목적</div>
+          <div class="privacy-section-content">아이에게 맞는 수준의 운동을 제공하고, 참여 현황을 보호자에게 안내하기 위함</div>
+        </div>
+        <div class="privacy-section">
+          <div class="privacy-section-title">📅 보관 기간</div>
+          <div class="privacy-section-content">서비스 이용 기간 동안 (탈퇴 시 즉시 파기)</div>
+        </div>
+        <div class="privacy-section">
+          <div class="privacy-section-title">🚫 제3자 제공</div>
+          <div class="privacy-section-content">없음</div>
+        </div>
+        <div class="privacy-notice">
+          위 목적을 위해 개인정보를 수집·이용하는 것에 동의해 주셔야 서비스 이용이 가능합니다.
+        </div>
+        <div class="privacy-consent">
+          <label class="privacy-checkbox-container" for="privacyCheckbox">
+            <input type="checkbox" id="privacyCheckbox" class="privacy-checkbox">
+            <span class="privacy-checkbox-label">개인정보 수집 및 이용에 동의합니다. (보호자 확인 필수)</span>
+          </label>
+        </div>
+      </div>
+      <div class="privacy-popup-footer">
+        <button class="privacy-confirm-btn" id="privacyConfirmBtn" disabled>
+          ✅ 확인
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 메인 페이지 -->
+  <div class="main-page" id="mainPage">
+    <!-- 헤더 -->
+    <div class="header">
+      <div class="title-container">
+        <h1>Groove to Grow</h1>
+      </div>
+    </div>
+
+    <!-- 메인 컨테이너 -->
+    <div class="main-container">
+      <!-- 왼쪽 절반 - 동작 인식 -->
+      <div class="left-section">
+        <h2 class="section-title">🎥 실시간 동작 인식</h2>
+
+        <div class="video-container">
+          <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-spinner"></div>
+            <p id="loadingText">카메라 준비 중...</p>
+          </div>
+          <div class="status-indicator" id="statusIndicator">대기중</div>
+          <video class="input_video" id="inputVideo"></video>
+          <canvas class="output_canvas" id="outputCanvas"></canvas>
+        </div>
+
+        <div class="message-area" id="messageArea"></div>
+
+        <div class="controls">
+          <button class="btn btn-primary" id="startButton">카메라 시작</button>
+          <button class="btn btn-danger" id="stopButton" disabled>정지</button>
+        </div>
+      </div>
+
+      <!-- 오른쪽 절반 - 올바른 동작 가이드 -->
+      <div class="right-section">
+        <h2 class="section-title">✨ 따라해 보세요!</h2>
+
+        <div class="zumba-video-container" id="zumbaVideoContainer">
+          <video id="zumbaVideo" muted loop style="display: none;"></video>
+          <canvas id="zumbaCanvas"></canvas>
+
+          <!-- 초기 상태 메시지 -->
+          <div class="video-placeholder" id="videoPlaceholder">
+            <div class="placeholder-icon">🕺</div>
+            <p>카메라 시작 후 줌바 동작이 시작됩니다</p>
+          </div>
+
+          <!-- 카운트다운 오버레이 -->
+          <div class="countdown-overlay" id="countdownOverlay">
+            <div class="countdown-number" id="countdownNumber">5</div>
+          </div>
+        </div>
+
+        <p style="text-align: center; color: #4a5568; margin: 10px 0; font-weight: 600;">
+          🎯 화면을 보고 정확한 자세를<br>따라해 보세요!
+        </p>
+      </div>
+    </div>
+
+    <!-- 푸터 -->
+    <div class="footer">
+      <button class="result-button" id="resultButton">결과 분석</button>
+    </div>
+  </div>
+
+  <!-- 분석 페이지 -->
+  <div class="analysis-page" id="analysisPage">
+    <div class="header">
+      <div class="title-container">
+        <h1>Groove to Grow</h1>
+      </div>
+    </div>
+
+    <div class="analysis-container">
+      <div class="analysis-header">
+        <h2 class="analysis-title">🤖 실시간 비교 분석</h2>
+        <button class="back-to-main-btn" id="backToMainBtn">⬅️ 뒤로가기</button>
+      </div>
+
+      <!-- 아이들을 위한 큰 점수 표시 -->
+      <div class="kids-score-section">
+        <h3>🎉 우리 아이의 점수는?</h3>
+        <div class="big-score-display" id="bigScoreDisplay">
+          <div class="score-value" id="kidsScore">--점</div>
+          <div class="score-message" id="scoreMessage">점수를 계산 중...</div>
+        </div>
+      </div>
+
+      <!-- 부모님을 위한 운동 정보 섹션 -->
+      <div class="parent-info-section">
+        <h3>📊 운동 리포트</h3>
+        <div class="exercise-stats">
+          <div class="stat-item">
+            <div class="stat-icon">⏱️</div>
+            <div class="stat-content">
+              <div class="stat-label">운동 시간</div>
+              <div class="stat-value" id="exerciseTime">0분 00초</div>
+            </div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-icon">🔥</div>
+            <div class="stat-content">
+              <div class="stat-label">소모 칼로리</div>
+              <div class="stat-value" id="caloriesBurned">0 kcal</div>
+            </div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-icon">💪</div>
+            <div class="stat-content">
+              <div class="stat-label">운동 강도</div>
+              <div class="stat-value" id="exerciseIntensity">보통</div>
+            </div>
+          </div>
+        </div>
+        <div class="health-tip">
+          <div class="tip-icon">💡</div>
+          <div class="tip-text">꾸준한 운동으로 아이의 건강한 성장을 도와주세요!</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    class GrooveToGrowApp {
+      constructor() {
+        console.log('🚀 GrooveToGrow 앱 초기화 시작');
+        this.initializeElements();
+        this.initializeVariables();
+        this.setupEventListeners();
+        this.initializeMediaPipe();
+      }
+
+      initializeElements() {
+        // 메인 페이지 요소들
+        this.videoElement = document.getElementById('inputVideo');
+        this.canvasElement = document.getElementById('outputCanvas');
+        this.canvasCtx = this.canvasElement.getContext('2d');
+        this.startButton = document.getElementById('startButton');
+        this.stopButton = document.getElementById('stopButton');
+        this.resultButton = document.getElementById('resultButton');
+        this.loadingOverlay = document.getElementById('loadingOverlay');
+        this.loadingText = document.getElementById('loadingText');
+        this.statusIndicator = document.getElementById('statusIndicator');
+        this.messageArea = document.getElementById('messageArea');
+        this.mainPage = document.getElementById('mainPage');
+        this.analysisPage = document.getElementById('analysisPage');
+        this.backToMainBtn = document.getElementById('backToMainBtn');
+
+        // 개인정보 동의 팝업 요소들
+        this.privacyPopup = document.getElementById('privacyPopup');
+        this.privacyCheckbox = document.getElementById('privacyCheckbox');
+        this.privacyConfirmBtn = document.getElementById('privacyConfirmBtn');
+
+        // 줌바 영상 관련 요소들
+        this.zumbaVideo = document.getElementById('zumbaVideo');
+        this.zumbaCanvas = document.getElementById('zumbaCanvas');
+        this.zumbaCanvasCtx = this.zumbaCanvas.getContext('2d');
+        this.videoPlaceholder = document.getElementById('videoPlaceholder');
+        this.countdownOverlay = document.getElementById('countdownOverlay');
+        this.countdownNumber = document.getElementById('countdownNumber');
+
+        console.log('✅ DOM 요소 초기화 완료');
+      }
+
+      initializeVariables() {
+        // 기본 변수들
+        this.camera = null;
+        this.userPose = null;
+        this.zumbaPose = null;
+        this.isInitialized = false;
+        this.isRunning = false;
+        this.canvasInitialized = false;
+
+        // 줌바 비디오 관련
+        this.countdownTimer = null;
+        this.zumbaVideoStarted = false;
+        this.zumbaProcessing = false;
+
+        // 운동 추적 관련
+        this.exerciseStartTime = null;
+        this.totalExerciseTime = 0;
+        this.exerciseTimer = null;
+        this.currentScore = 90;
+
+        console.log('✅ 변수 초기화 완료');
+      }
+
+      setupEventListeners() {
+        this.startButton.addEventListener('click', () => this.startCamera());
+        this.stopButton.addEventListener('click', () => this.stopCamera());
+        this.resultButton.addEventListener('click', () => this.showAnalysisPage());
+        this.backToMainBtn.addEventListener('click', () => this.resetToMainPage());
+
+        // 개인정보 동의 팝업 이벤트 리스너
+        this.privacyCheckbox.addEventListener('change', () => this.handlePrivacyCheckbox());
+        this.privacyConfirmBtn.addEventListener('click', () => this.closePrivacyPopup());
+
+        window.addEventListener('resize', () => this.resizeCanvas());
+        window.addEventListener('beforeunload', () => this.cleanup());
+
+        console.log('✅ 이벤트 리스너 설정 완료');
+      }
+
+      async initializeMediaPipe() {
+        try {
+          console.log('🔧 MediaPipe 초기화 시작...');
+
+          // 사용자 카메라용 Pose
+          this.userPose = new Pose({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+          });
+
+          this.userPose.setOptions({
+            modelComplexity: 1,
+            smoothLandmarks: true,
+            enableSegmentation: false,
+            minDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.5
+          });
+
+          this.userPose.onResults((results) => this.onUserResults(results));
+
+          // 줌바 영상용 Pose
+          this.zumbaPose = new Pose({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+          });
+
+          this.zumbaPose.setOptions({
+            modelComplexity: 1,
+            smoothLandmarks: true,
+            enableSegmentation: false,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+          });
+
+          this.zumbaPose.onResults((results) => this.onZumbaResults(results));
+
+          // 줌바 비디오 로딩
+          await this.loadZumbaVideo();
+
+          this.isInitialized = true;
+          console.log('✅ MediaPipe 초기화 완료');
+
+        } catch (error) {
+          console.error('❌ MediaPipe 초기화 실패:', error);
+          this.showMessage('MediaPipe 라이브러리 로딩에 실패했습니다. 페이지를 새로고침 해주세요.', 'error');
+        }
+      }
+
+      onUserResults(results) {
+        if (this.isRunning) {
+          this.renderMainCamera(results);
+        }
+      }
+
+      renderMainCamera(results) {
+        if (!this.canvasInitialized) {
+          this.resizeCanvas();
+          this.canvasInitialized = true;
+        }
+
+        this.canvasCtx.save();
+        this.canvasCtx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
+
+        // 좌우 반전
+        this.canvasCtx.translate(this.canvasElement.width, 0);
+        this.canvasCtx.scale(-1, 1);
+
+        // 비디오 그리기
+        this.canvasCtx.drawImage(
+          results.image,
+          0, 0,
+          this.canvasElement.width,
+          this.canvasElement.height
+        );
+
+        // 포즈 랜드마크 그리기
+        if (results.poseLandmarks) {
+          drawConnectors(this.canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {
+            color: '#00ff88',
+            lineWidth: 3
+          });
+          drawLandmarks(this.canvasCtx, results.poseLandmarks, {
+            color: '#ff4444',
+            lineWidth: 2,
+            radius: 3
+          });
+
+          this.updateStatus('동작 인식중', 'status-detecting');
+        } else {
+          this.updateStatus('사람 없음', 'status-active');
+        }
+
+        this.canvasCtx.restore();
+      }
+
+      onZumbaResults(results) {
+        if (this.zumbaVideoStarted) {
+          this.renderMainZumbaCanvas(results);
+        }
+      }
+
+      renderMainZumbaCanvas(results) {
+        if (!results || !results.image) return;
+
+        const videoWidth = this.zumbaVideo.videoWidth;
+        const videoHeight = this.zumbaVideo.videoHeight;
+
+        if (videoWidth > 0 && videoHeight > 0) {
+          this.zumbaCanvas.width = this.zumbaCanvas.offsetWidth;
+          this.zumbaCanvas.height = this.zumbaCanvas.offsetHeight;
+        }
+
+        this.zumbaCanvasCtx.save();
+        this.zumbaCanvasCtx.clearRect(0, 0, this.zumbaCanvas.width, this.zumbaCanvas.height);
+
+        // 비디오 프레임 그리기
+        this.zumbaCanvasCtx.drawImage(
+          results.image,
+          0, 0,
+          this.zumbaCanvas.width,
+          this.zumbaCanvas.height
+        );
+
+        // MediaPipe 포즈 랜드마크 그리기
+        if (results.poseLandmarks && results.poseLandmarks.length > 0) {
+          drawConnectors(this.zumbaCanvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {
+            color: '#00FF88',
+            lineWidth: 3
+          });
+
+          drawLandmarks(this.zumbaCanvasCtx, results.poseLandmarks, {
+            color: '#FF4444',
+            lineWidth: 2,
+            radius: 3
+          });
+        }
+
+        this.zumbaCanvasCtx.restore();
+      }
+
+      resizeCanvas() {
+        const container = this.canvasElement.parentElement;
+        const rect = container.getBoundingClientRect();
+        this.canvasElement.width = rect.width;
+        this.canvasElement.height = rect.height;
+      }
+
+      async startCamera() {
+        if (!this.isInitialized) {
+          this.showMessage('MediaPipe가 아직 초기화되지 않았습니다. 잠시 후 다시 시도해주세요.', 'error');
+          return;
+        }
+
+        try {
+          console.log('📷 카메라 시작...');
+          this.startButton.disabled = true;
+          this.loadingText.textContent = '카메라 시작 중...';
+          this.hideMessage();
+
+          this.camera = new Camera(this.videoElement, {
+            onFrame: async () => {
+              if (this.userPose && this.isRunning) {
+                await this.userPose.send({ image: this.videoElement });
+              }
+            },
+            width: 1280,
+            height: 720,
+            facingMode: 'user'
+          });
+
+          await this.camera.start();
+
+          this.loadingOverlay.classList.add('hidden');
+          this.updateStatus('카메라 활성', 'status-active');
+          this.startButton.disabled = false;
+          this.stopButton.disabled = false;
+          this.startButton.textContent = '재시작';
+          this.isRunning = true;
+
+          this.showMessage('카메라가 성공적으로 시작되었습니다!', 'success');
+          console.log('✅ 카메라 시작 완료');
+
+          // 운동 시간 추적 시작
+          this.startExerciseTracking();
+
+          // 5초 카운트다운 시작
+          this.startCountdown();
+
+        } catch (error) {
+          console.error('❌ 카메라 시작 실패:', error);
+          this.handleCameraError(error);
+        }
+      }
+
+      stopCamera() {
+        try {
+          console.log('📷 카메라 정지...');
+          this.isRunning = false;
+
+          if (this.camera) {
+            this.camera.stop();
+          }
+
+          if (this.videoElement.srcObject) {
+            this.videoElement.srcObject.getTracks().forEach(track => {
+              track.stop();
+            });
+            this.videoElement.srcObject = null;
+          }
+
+          this.canvasCtx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
+
+          this.loadingOverlay.classList.remove('hidden');
+          this.loadingText.textContent = '카메라 준비 중...';
+          this.updateStatus('대기중', '');
+          this.startButton.disabled = false;
+          this.stopButton.disabled = true;
+          this.startButton.textContent = '카메라 시작';
+          this.canvasInitialized = false;
+
+          // 운동 시간 추적 정지
+          this.stopExerciseTracking();
+
+          this.showMessage('카메라가 정지되었습니다.', 'success');
+          console.log('✅ 카메라 정지 완료');
+
+        } catch (error) {
+          console.error('❌ 카메라 정지 실패:', error);
+          this.showMessage('카메라 정지 중 오류가 발생했습니다.', 'error');
+        }
+      }
+
+      handleCameraError(error) {
+        let message = '카메라 접근에 실패했습니다.';
+
+        if (error.name === 'NotAllowedError') {
+          message = '카메라 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.';
+        } else if (error.name === 'NotFoundError') {
+          message = '카메라를 찾을 수 없습니다. 카메라가 연결되어 있는지 확인해주세요.';
+        } else if (error.name === 'NotReadableError') {
+          message = '카메라가 다른 애플리케이션에서 사용 중입니다.';
+        }
+
+        this.showMessage(message, 'error');
+        this.updateStatus('오류', '');
+        this.startButton.disabled = false;
+        this.loadingOverlay.classList.add('hidden');
+      }
+
+      updateStatus(text, className) {
+        this.statusIndicator.textContent = text;
+        this.statusIndicator.className = `status-indicator ${className}`;
+      }
+
+      showAnalysisPage() {
+        console.log('📊 분석 페이지로 전환');
+        this.mainPage.style.display = 'none';
+        this.analysisPage.classList.add('active');
+        document.body.classList.remove('main-page-active');
+
+        // 70점 이상의 랜덤 점수 생성 (70-100)
+        const randomScore = Math.floor(Math.random() * 31) + 70;
+        this.updateKidsScore(randomScore);
+        this.updateExerciseStats();
+      }
+
+      resetToMainPage() {
+        console.log('🏠 메인 페이지로 리셋');
+        this.analysisPage.classList.remove('active');
+        this.mainPage.style.display = 'block';
+        document.body.classList.add('main-page-active');
+
+        if (this.zumbaVideo) {
+          this.zumbaVideo.pause();
+          this.zumbaVideo.currentTime = 0;
+        }
+
+        this.zumbaVideoStarted = false;
+        this.countdownOverlay.classList.remove('active');
+        this.videoPlaceholder.style.display = 'block';
+
+        this.showMessage('처음 화면으로 돌아왔습니다.', 'success');
+      }
+
+      async loadZumbaVideo() {
+        try {
+          console.log('🎬 줌바 비디오 로딩...');
+          this.zumbaVideo.src = './Zumba.mp4';
+          this.zumbaVideo.load();
+
+          this.zumbaCanvas.width = this.zumbaCanvas.offsetWidth;
+          this.zumbaCanvas.height = this.zumbaCanvas.offsetHeight;
+
+          this.zumbaVideo.addEventListener('loadeddata', () => {
+            console.log('✅ 줌바 비디오 로딩 완료');
+          });
+
+          this.zumbaVideo.addEventListener('error', (e) => {
+            console.error('❌ 줌바 비디오 로딩 오류:', e);
+            this.showDemoZumbaPose();
+          });
+
+        } catch (error) {
+          console.error('❌ 줌바 비디오 로딩 실패:', error);
+          this.showDemoZumbaPose();
+        }
+      }
+
+      startCountdown() {
+        console.log('⏰ 카운트다운 시작');
+        let count = 5;
+        this.countdownOverlay.classList.add('active');
+        this.countdownNumber.textContent = count;
+
+        this.countdownTimer = setInterval(() => {
+          count--;
+          if (count > 0) {
+            this.countdownNumber.textContent = count;
+            this.countdownNumber.style.animation = 'none';
+            setTimeout(() => {
+              this.countdownNumber.style.animation = 'countdownPulse 1s ease-in-out';
+            }, 10);
+          } else {
+            this.countdownNumber.textContent = 'START!';
+            setTimeout(() => {
+              this.countdownOverlay.classList.remove('active');
+              this.startZumbaVideo();
+            }, 1000);
+            clearInterval(this.countdownTimer);
+          }
+        }, 1000);
+      }
+
+      startZumbaVideo() {
+        if (this.zumbaVideoStarted) return;
+
+        console.log('🎬 줌바 비디오 시작');
+        this.zumbaVideoStarted = true;
+        this.videoPlaceholder.style.display = 'none';
+
+        if (this.zumbaVideo.src && this.zumbaVideo.readyState >= 2) {
+          this.zumbaVideo.currentTime = 0;
+          this.zumbaVideo.play().then(() => {
+            console.log('✅ 줌바 비디오 재생 시작');
+            this.processZumbaVideo();
+          }).catch(error => {
+            console.error('❌ 줌바 비디오 재생 실패:', error);
+            this.showDemoZumbaPose();
+          });
+        } else {
+          console.warn('⚠️ Zumba.mp4 파일을 찾을 수 없습니다. 데모 포즈를 표시합니다.');
+          this.showDemoZumbaPose();
+        }
+      }
+
+      async processZumbaVideo() {
+        if (!this.zumbaPose || !this.zumbaVideo || this.zumbaVideo.paused || this.zumbaVideo.ended || this.zumbaProcessing) {
+          return;
+        }
+
+        this.zumbaProcessing = true;
+
+        try {
+          await this.zumbaPose.send({ image: this.zumbaVideo });
+        } catch (error) {
+          console.error('❌ 줌바 비디오 프레임 처리 오류:', error);
+        }
+
+        if (!this.zumbaVideo.paused && !this.zumbaVideo.ended && this.zumbaVideoStarted) {
+          this.zumbaProcessing = false;
+          requestAnimationFrame(() => this.processZumbaVideo());
+        } else {
+          this.zumbaProcessing = false;
+        }
+      }
+
+      showDemoZumbaPose() {
+        console.log('🎭 데모 줌바 포즈 표시');
+        this.zumbaCanvasCtx.clearRect(0, 0, this.zumbaCanvas.width, this.zumbaCanvas.height);
+
+        const gradient = this.zumbaCanvasCtx.createLinearGradient(0, 0, 0, this.zumbaCanvas.height);
+        gradient.addColorStop(0, '#667eea');
+        gradient.addColorStop(1, '#764ba2');
+        this.zumbaCanvasCtx.fillStyle = gradient;
+        this.zumbaCanvasCtx.fillRect(0, 0, this.zumbaCanvas.width, this.zumbaCanvas.height);
+
+        const centerX = this.zumbaCanvas.width / 2;
+        const centerY = this.zumbaCanvas.height / 2;
+
+        this.zumbaCanvasCtx.strokeStyle = '#00ff88';
+        this.zumbaCanvasCtx.lineWidth = 3;
+        this.zumbaCanvasCtx.fillStyle = '#ff4444';
+
+        // 간단한 춤추는 모습 그리기
+        this.zumbaCanvasCtx.beginPath();
+        this.zumbaCanvasCtx.arc(centerX, centerY - 60, 15, 0, 2 * Math.PI);
+        this.zumbaCanvasCtx.stroke();
+
+        this.zumbaCanvasCtx.beginPath();
+        this.zumbaCanvasCtx.moveTo(centerX, centerY - 45);
+        this.zumbaCanvasCtx.lineTo(centerX, centerY + 30);
+        this.zumbaCanvasCtx.stroke();
+
+        this.zumbaCanvasCtx.beginPath();
+        this.zumbaCanvasCtx.moveTo(centerX, centerY - 30);
+        this.zumbaCanvasCtx.lineTo(centerX - 40, centerY - 50);
+        this.zumbaCanvasCtx.stroke();
+
+        this.zumbaCanvasCtx.beginPath();
+        this.zumbaCanvasCtx.moveTo(centerX, centerY - 30);
+        this.zumbaCanvasCtx.lineTo(centerX + 40, centerY - 10);
+        this.zumbaCanvasCtx.stroke();
+
+        this.zumbaCanvasCtx.beginPath();
+        this.zumbaCanvasCtx.moveTo(centerX, centerY + 30);
+        this.zumbaCanvasCtx.lineTo(centerX - 25, centerY + 70);
+        this.zumbaCanvasCtx.stroke();
+
+        this.zumbaCanvasCtx.beginPath();
+        this.zumbaCanvasCtx.moveTo(centerX, centerY + 30);
+        this.zumbaCanvasCtx.lineTo(centerX + 25, centerY + 70);
+        this.zumbaCanvasCtx.stroke();
+      }
+
+      startExerciseTracking() {
+        console.log('🏃‍♀️ 운동 추적 시작');
+        this.exerciseStartTime = Date.now();
+
+        this.exerciseTimer = setInterval(() => {
+          this.updateExerciseStats();
+        }, 1000);
+      }
+
+      stopExerciseTracking() {
+        console.log('🏁 운동 추적 정지');
+        if (this.exerciseTimer) {
+          clearInterval(this.exerciseTimer);
+          this.exerciseTimer = null;
+        }
+
+        if (this.exerciseStartTime) {
+          this.totalExerciseTime += (Date.now() - this.exerciseStartTime) / 1000;
+          this.exerciseStartTime = null;
+        }
+
+        this.updateExerciseStats();
+      }
+
+      updateExerciseStats() {
+        let currentExerciseTime = this.totalExerciseTime;
+
+        if (this.exerciseStartTime) {
+          currentExerciseTime += (Date.now() - this.exerciseStartTime) / 1000;
+        }
+
+        const minutes = Math.floor(currentExerciseTime / 60);
+        const seconds = Math.floor(currentExerciseTime % 60);
+        const timeString = `${minutes}분 ${seconds.toString().padStart(2, '0')}초`;
+
+        const caloriesPerMinute = 10;
+        const totalCalories = Math.round((currentExerciseTime / 60) * caloriesPerMinute);
+
+        let intensity = '낮음';
+
+        const exerciseTimeElement = document.getElementById('exerciseTime');
+        const caloriesBurnedElement = document.getElementById('caloriesBurned');
+        const exerciseIntensityElement = document.getElementById('exerciseIntensity');
+
+        if (exerciseTimeElement) exerciseTimeElement.textContent = timeString;
+        if (caloriesBurnedElement) caloriesBurnedElement.textContent = `${totalCalories} kcal`;
+        if (exerciseIntensityElement) exerciseIntensityElement.textContent = intensity;
+      }
+
+      updateKidsScore(score) {
+        this.currentScore = score;
+
+        const kidsScoreElement = document.getElementById('kidsScore');
+        const scoreMessageElement = document.getElementById('scoreMessage');
+
+        if (kidsScoreElement) {
+          kidsScoreElement.textContent = `${Math.round(score)}점`;
+        }
+
+        if (scoreMessageElement) {
+          let message = '';
+          if (score >= 90) {
+            message = '와! 정말 완벽해요! 🌟';
+          } else if (score >= 80) {
+            message = '정말 잘했어요! 👏';
+          } else if (score >= 70) {
+            message = '좋아요! 계속해요! 😊';
+          } else if (score >= 60) {
+            message = '조금 더 힘내요! 💪';
+          } else {
+            message = '천천히 따라해보세요! 😄';
+          }
+          scoreMessageElement.textContent = message;
+        }
+      }
+
+      showMessage(message, type = 'info') {
+        this.messageArea.innerHTML = `
+          <div class="${type}-message">
+            ${message}
+          </div>
+        `;
+
+        setTimeout(() => this.hideMessage(), 3000);
+      }
+
+      hideMessage() {
+        this.messageArea.innerHTML = '';
+      }
+
+      handlePrivacyCheckbox() {
+        const isChecked = this.privacyCheckbox.checked;
+        this.privacyConfirmBtn.disabled = !isChecked;
+
+        if (isChecked) {
+          this.privacyConfirmBtn.style.background = 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)';
+        } else {
+          this.privacyConfirmBtn.style.background = '#cbd5e0';
+        }
+      }
+
+      closePrivacyPopup() {
+        if (!this.privacyCheckbox.checked) {
+          alert('개인정보 수집 및 이용에 동의해주셔야 서비스를 이용할 수 있습니다.');
+          return;
+        }
+
+        console.log('🛡️ 개인정보 동의 완료');
+        this.privacyPopup.classList.add('hidden');
+        document.body.classList.add('main-page-active');
+      }
+
+      cleanup() {
+        console.log('🧹 리소스 정리');
+        this.stopCamera();
+        this.stopExerciseTracking();
+
+        if (this.countdownTimer) {
+          clearInterval(this.countdownTimer);
+        }
+
+        if (this.zumbaVideo) {
+          this.zumbaVideo.pause();
+          this.zumbaVideo.currentTime = 0;
+        }
+
+        this.zumbaVideoStarted = false;
+        this.zumbaProcessing = false;
+
+        if (this.videoPlaceholder) {
+          this.videoPlaceholder.style.display = 'block';
+        }
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('🎉 DOM 로딩 완료, 앱 시작');
+      document.body.classList.add('main-page-active');
+      new GrooveToGrowApp();
+    });
+  </script>
+</body>
+</html>
